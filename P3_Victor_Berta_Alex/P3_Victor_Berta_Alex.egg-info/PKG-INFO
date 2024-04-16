@@ -1,0 +1,9 @@
+Metadata-Version: 2.1
+Name: P3-Victor-Berta-Alex
+Version: 0.0.0
+Summary: TODO: Package description
+Maintainer: vcegri
+Maintainer-email: victor.cegri@gmail.com
+License: Apache-2.0
+License-File: LICENSE
+Requires-Dist: setuptools

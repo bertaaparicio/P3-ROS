@@ -1,0 +1,15 @@
+LICENSE
+package.xml
+setup.cfg
+setup.py
+P3_Victor_Berta_Alex/__init__.py
+P3_Victor_Berta_Alex.egg-info/PKG-INFO
+P3_Victor_Berta_Alex.egg-info/SOURCES.txt
+P3_Victor_Berta_Alex.egg-info/dependency_links.txt
+P3_Victor_Berta_Alex.egg-info/requires.txt
+P3_Victor_Berta_Alex.egg-info/top_level.txt
+P3_Victor_Berta_Alex.egg-info/zip-safe
+resource/P3_Victor_Berta_Alex
+test/test_copyright.py
+test/test_flake8.py
+test/test_pep257.py
