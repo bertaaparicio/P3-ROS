@@ -20,6 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+        	'P3 = P3_Victor_Berta_Alex.Main:main',
         ],
     },
 )

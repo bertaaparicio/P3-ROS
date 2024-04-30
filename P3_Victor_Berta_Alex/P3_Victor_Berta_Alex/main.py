@@ -1,118 +1,81 @@
 import rclpy
-from rclpy.node import Node
 from geometry_msgs.msg import Twist
-from turtlesim.msg import Color
+from turtlesim.msg import Pose
+from turtlesim.srv import Spawn
+from rclpy.qos import QoSProfile
 import math
 
-class LandscapeControl(Node):
+
+class DrawLandscape:
     def __init__(self):
-        super().__init__('landscape_control')
-        self.publisher_ = self.create_publisher(Twist, 'turtle1/cmd_vel', 10)
-        self.timer = self.create_timer(0.5, self.draw_landscape)
-        self.vel_msg = Twist()
+        self.node = rclpy.create_node('draw_landscape')
+        self.publisher = self.node.create_publisher(Twist, 'turtle2/cmd_vel', 10)
+        qos = QoSProfile(depth=10)
+        self.subscription = self.node.create_subscription(Pose, 'turtle2/pose', self.pose_callback, 10)
+        self.subscription
 
-    def draw_landscape(self):
-        # Crea el círculo en la esquina superior derecha
-        self.move_turtle_to(9, 9)
-        self.draw_circle(2)
+        self.spawn_turtle()
 
-        # Crea el césped
-        self.move_turtle_to(0, 5)
-        self.draw_grass(10, 5)
+    def spawn_turtle(self):
+        client = self.node.create_client(Spawn, 'spawn')
+        while not client.wait_for_service(timeout_sec=1.0):
+            self.node.get_logger().info('service not available, waiting again...')
+        request = Spawn.Request()
+        request.x = 1.0
+        request.y = 1.0
+        request.theta = 0.0
+        request.name = 'turtle2'
+        future = client.call_async(request)
 
-        # Crea la casa
-        self.move_turtle_to(5, 2)
-        self.draw_house()
+    def pose_callback(self, data):
+        # Calculate the direction to move towards the circle center
+        circle_direction = math.atan2(5.0 - data.y, 5.0 - data.x)
 
-    def move_turtle_to(self, x, y):
-        self.vel_msg.linear.x = x
-        self.vel_msg.linear.y = y
-        self.publisher_.publish(self.vel_msg)
+        # Calculate the direction to move towards the line start point
+        line_direction = math.atan2(2.0 - data.y, 1.0 - data.x)
 
-    def draw_circle(self, radius):
-        # Centro del círculo
-        x_center = self.vel_msg.linear.x
-        y_center = self.vel_msg.linear.y
+        # Calculate the distance to the circle center
+        circle_distance = math.sqrt((5.0 - data.x)**2 + (5.0 - data.y)**2)
 
-        x = radius
-        y = 0
-        err = 0
+        # Calculate the distance to the line
+        line_distance = math.sqrt((9.0 - 2.0)**2 + (8.0 - 2.0)**2)
 
-        while x >= y:
-            self.move_turtle_to(x_center + x, y_center + y)
-            self.move_turtle_to(x_center + y, y_center + x)
-            self.move_turtle_to(x_center - y, y_center + x)
-            self.move_turtle_to(x_center - x, y_center + y)
-            self.move_turtle_to(x_center - x, y_center - y)
-            self.move_turtle_to(x_center - y, y_center - x)
-            self.move_turtle_to(x_center + y, y_center - x)
-            self.move_turtle_to(x_center + x, y_center - y)
+        # Stop the turtle if it's close to the circle center or line start point
+        if circle_distance < 0.1 or line_distance < 0.1:
+            twist = Twist()
+            self.publisher.publish(twist)
+        else:
+            # Calculate the angular velocity to move towards the circle center
+            twist_circle = Twist()
+            twist_circle.linear.x = 1.0  # adjust linear velocity as needed
+            twist_circle.angular.z = self.calculate_angular_velocity(data.theta, circle_direction)
+            self.publisher.publish(twist_circle)
 
-            y += 1
-            err += 1 + 2*y
-            if 2*(err-x) + 1 > 0:
-                x -= 1
-                err += 1 - 2*x
+            # Calculate the angular velocity to move towards the line start point
+            twist_line = Twist()
+            twist_line.linear.x = 1.0  # adjust linear velocity as needed
+            twist_line.angular.z = self.calculate_angular_velocity(data.theta, line_direction)
+            self.publisher.publish(twist_line)
 
-    def draw_grass(self, width, height):
-        # Guarda el color actual de la tortuga
-        original_color = self.get_turtle_color()
+        self.rate.sleep()  # maintain the rate of publishing commands
 
-        # Cambia el color de la tortuga a verde
-        green_color = Color(r=0, g=255, b=0)
-        self.set_turtle_color(green_color)
+    def calculate_angular_velocity(self, current_angle, target_angle):
+        # Calculate the shortest angular distance to the target angle
+        delta_angle = target_angle - current_angle
+        if delta_angle > math.pi:
+            delta_angle -= 2 * math.pi
+        elif delta_angle < -math.pi:
+            delta_angle += 2 * math.pi
 
-        # Posición inicial del césped
-        x_start = 0
-        y_start = self.vel_msg.linear.y
-        # Tamaño del césped
-        grass_width = width
-        grass_height = 2  # Altura del césped
-
-        # Dibuja el césped en líneas horizontales
-        for y in range(y_start, y_start + grass_height):
-            self.move_turtle_to(x_start, y)
-            self.move_turtle_to(x_start + grass_width, y)
-
-        # Restaura el color original de la tortuga
-        self.set_turtle_color(original_color)
-
-    def draw_house(self):
-        # Guarda el color actual de la tortuga
-        original_color = self.get_turtle_color()
-
-        # Cambia el color de la tortuga a rojo
-        red_color = Color(r=255, g=0, b=0)
-        self.set_turtle_color(red_color)
-
-        # Dibuja el cuerpo de la casa
-        self.draw_square(4)
-
-        # Dibuja el techo de la casa
-        self.draw_triangle(4)
-
-        # Restaura el color original de la tortuga
-        self.set_turtle_color(original_color)
-
-
-    def draw_square(self, size):
-        # Dibuja un cuadrado
-        for _ in range(4):
-            self.move_turtle_forward(size)
-            self.turn_turtle_right(90)
-
-
-    def draw_triangle(self, size):
-        # Dibuja un triángulo
-        for _ in range(3):
-            self.move_turtle_forward(size)
-            self.turn_turtle_right(120)
+        # Convert the angular distance to angular velocity
+        return delta_angle * 2
 
 def main(args=None):
     rclpy.init(args=args)
-    landscape_control = LandscapeControl()
-    rclpy.spin(landscape_control)
-    landscape_control.destroy_node()
+    draw_landscape = DrawLandscape()
+    rclpy.spin(draw_landscape.node)
+    draw_landscape.node.destroy_node()
+
     rclpy.shutdown()
 
 if __name__ == '__main__':
